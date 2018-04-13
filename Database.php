@@ -30,6 +30,8 @@ class Database
     private $_char;
     private $_lang;
 
+    private $_exceptionClass = 'Exception';
+
     /**
      * Database constructor
      *
@@ -498,7 +500,16 @@ class Database
      */
     private function error($message)
     {
-        throw new Exception($message);   // todo: take Exception class from constructor
+        throw new $this->_exceptionClass($message);
     }
 
+    /**
+     * Set Exception handler class name
+     *
+     * @param string $handler
+     */
+    public function setExceptionHandler($handler)
+    {
+        $this->_exceptionClass = $handler;
+    }
 }
