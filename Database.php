@@ -1,10 +1,13 @@
 <?php
 
 /**
- * Database Class
+ * Class Database
+ *
+ * Mysql Wrapper
  */
 class Database
 {
+
     /**
      * @var mysqli
      */
@@ -16,6 +19,7 @@ class Database
     private $_result;
 
     private $_query;
+
     private $_timer;
 
     private $_host;
@@ -36,6 +40,8 @@ class Database
      *
      * @param string $char
      * @param string $lang
+     *
+     * @throws Exception
      */
     public function __construct($DBHost = null, $DBName = null, $DBUser = null, $DBPass = null, $char = 'utf8', $lang = 'ru_RU')
     {
@@ -50,11 +56,17 @@ class Database
         $this->connect();
     }
 
+    /**
+     * Database destructor
+     */
     public function __destruct()
     {
         if ($this->_mysqli) $this->_mysqli->close();
     }
 
+    /**
+     * @throws Exception
+     */
     private function connect()
     {
         @$this->_mysqli = new mysqli($this->_host, $this->_user, $this->_pass, $this->_name);
@@ -67,6 +79,9 @@ class Database
         $this->_mysqli->set_charset($this->_char);
     }
 
+    /**
+     * @throws Exception
+     */
     private function checkConnect()
     {
         if (!$this->_mysqli->ping()) {
@@ -74,6 +89,12 @@ class Database
         }
     }
 
+    /**
+     * @param string $sql
+     * @param mixed  $params
+     *
+     * @return string
+     */
     private function prepareQuery($sql, $params)
     {
         if (is_array($params)) {
@@ -89,13 +110,15 @@ class Database
         return $query;
     }
 
+    /**
+     * @param string $sql
+     *
+     * @throws Exception
+     */
     private function processQuery($sql)
     {
         // reset previous result
         $this->_result = null;
-
-        // store query
-        $this->_query = $sql;
 
         $this->checkConnect();
 
@@ -103,9 +126,16 @@ class Database
         $this->_result = $this->_mysqli->query($sql);
         $this->_timer = microtime(true) - $timeStart;
 
-        if (!$this->_result) $this->error("invalid sql query: {$sql}. Mysql error [{$this->_mysqli->errno}]: {$this->_mysqli->error}");
+        if (!$this->_result) {
+            $this->error("invalid sql query: {$sql}. Mysql error [{$this->_mysqli->errno}]: {$this->_mysqli->error}");
+        }
     }
 
+    /**
+     * @param string $str
+     *
+     * @return string
+     */
     private function escapeSimple($str)
     {
         $str = $this->_mysqli->real_escape_string($str);
@@ -196,6 +226,8 @@ class Database
      * @param array  $params
      *
      * @return void
+     *
+     * @throws Exception
      */
     public function query($sql, $params = array())
     {
@@ -214,6 +246,7 @@ class Database
      * @param integer $offset
      *
      * @return void
+     * @throws Exception
      */
     public function select($table, $columns = '*', $conditions = null, $sorting = null, $limit = null, $offset = null)
     {
@@ -238,6 +271,7 @@ class Database
      * @param array  $data
      *
      * @return void
+     * @throws Exception
      */
     public function insert($table, $data)
     {
@@ -257,6 +291,7 @@ class Database
      * @param array  $conditions
      *
      * @return void
+     * @throws Exception
      */
     public function update($table, $data, $conditions = null)
     {
@@ -277,6 +312,7 @@ class Database
      * @param array  $conditions
      *
      * @return void
+     * @throws Exception
      */
     public function delete($table, $conditions = null)
     {
@@ -291,12 +327,33 @@ class Database
 
     /** ---------------------------- **/
 
+    /**
+     * Prepare table name
+     *
+     * @param string $table
+     *
+     * @return string
+     * @throws Exception
+     */
     private function prepareTable($table)
     {
+        if (empty($table)) {
+            $this->error('Empty table');
+        }
+
         $table = "`{$this->escapeSimple($table)}`";
+
         return $table;
     }
 
+    /**
+     * Prepare columns
+     *
+     * @param string|array $columns
+     *
+     * @return string
+     * @throws Exception
+     */
     private function prepareColumns($columns)
     {
         if ($columns == '*') return $columns;
@@ -320,8 +377,20 @@ class Database
         return $columnsStr;
     }
 
+    /**
+     * Prepare data
+     *
+     * @param array $data
+     *
+     * @return string
+     * @throws Exception
+     */
     private function prepareData($data)
     {
+        if (empty($data)) {
+            $this->error('Empty data');
+        }
+
         $dataStr = '';
 
         if (is_array($data)) {
@@ -330,11 +399,21 @@ class Database
                 $dataStr .= "{$comma}`{$this->escapeSimple($param)}` = '{$this->escapeSimple($value)}'";
                 $comma = ', ';
             }
+        } else {
+            $this->error('Data must be array');
         }
 
         return $dataStr;
     }
 
+    /**
+     * Prepare conditions
+     *
+     * @param array $conditions
+     *
+     * @return string
+     * @throws Exception
+     */
     private function prepareConditions($conditions)
     {
         $where = '';
@@ -355,6 +434,14 @@ class Database
         return $where;
     }
 
+    /**
+     * Prepare sorting params
+     *
+     * @param $sorting
+     *
+     * @return string
+     * @throws Exception
+     */
     private function prepareSorting($sorting)
     {
         $order = '';
@@ -376,6 +463,14 @@ class Database
         return $order;
     }
 
+    /**
+     * Prepare limit params
+     *
+     * @param integer $rows
+     * @param integer $offset
+     *
+     * @return string
+     */
     private function prepareLimit($rows, $offset = null)
     {
         $limit = '';
